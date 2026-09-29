@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.cache/
+.data/
+.DS_Store
+*.egg-info/
+dist/
+build/
+samples_with_text/
+samples_no_text/
+samples_lut/

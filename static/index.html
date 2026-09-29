@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>图片分拣</title>
+    <link rel="stylesheet" href="/static/styles.css?v=24" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <div class="brand">
+          <span class="mark" id="brandMark">Aa</span>
+          <div>
+            <h1 id="brandTitle">文字分拣</h1>
+            <p id="brandSub">按面积占比挑出含字图片</p>
+          </div>
+        </div>
+
+        <div class="task-switch" role="tablist">
+          <button class="task active" data-task="text" type="button">文字分拣</button>
+          <button class="task" data-task="color" type="button">色彩分析</button>
+          <button class="task" data-task="composition" type="button">构图分析</button>
+          <button class="task" data-task="crop" type="button">去边裁剪</button>
+          <button class="task" data-task="lut" type="button">LUT 调色</button>
+        </div>
+
+        <label class="field">
+          <span>图片文件夹</span>
+          <input id="folder" type="text" spellcheck="false" placeholder="/path/to/images" />
+        </label>
+
+        <label class="check">
+          <input id="recursive" type="checkbox" />
+          <span>包含子文件夹</span>
+        </label>
+
+        <section id="textControls">
+          <div class="actions">
+            <button id="scanBtn" class="primary" type="button">开始分析</button>
+            <button id="stopBtn" class="danger" type="button" disabled>停止</button>
+          </div>
+          <p id="scanHint" class="hint">首次会加载文字检测模型，稍等片刻。分析中可随时停止，改完阈值也能重新分析。</p>
+
+          <div class="divider"></div>
+
+          <div class="field">
+            <span class="row-between">
+              文字面积阈值
+              <strong id="thresholdLabel">5%</strong>
+            </span>
+            <div class="slider-row">
+              <input id="threshold" type="range" min="0" max="40" step="0.5" value="5" />
+              <input id="thresholdNum" type="number" min="0" max="40" step="0.5" value="5" />
+            </div>
+          </div>
+          <p class="hint">高于该占比的图片进入「含文字」一类。拖动即可实时重分类。</p>
+
+          <label class="field">
+            <span>含文字目标目录</span>
+            <input id="destText" type="text" spellcheck="false" placeholder="默认：原目录旁 *_with_text" />
+          </label>
+          <label class="field">
+            <span>不含文字目标目录</span>
+            <input id="destRest" type="text" spellcheck="false" placeholder="默认：原目录旁 *_no_text" />
+          </label>
+          <button id="exportTextBtn" class="ghost" type="button" disabled>移出含文字图片</button>
+          <button id="exportRestBtn" class="ghost" type="button" disabled>移出不含文字图片</button>
+          <p class="hint">从原文件夹直接挪走，不复制。改阈值后可再挪到另一类。</p>
+          <p id="exportHint" class="hint"></p>
+        </section>
+
+        <section id="colorControls" hidden inert>
+          <div class="actions">
+            <button id="colorScanBtn" class="primary" type="button">开始分析</button>
+            <button id="colorStopBtn" class="danger" type="button" disabled>停止</button>
+          </div>
+          <p id="colorScanHint" class="hint">过曝欠曝只看失去细节的死白/死黑，白衬衫、黑发等固有色不计。再查高饱和纯色和主色搭配。主色不超过 3 块也算配色通过。</p>
+
+          <div class="divider"></div>
+
+          <div class="field">
+            <span class="row-between">
+              过曝面积
+              <strong id="overLabel">10%</strong>
+            </span>
+            <div class="slider-row">
+              <input id="overThreshold" type="range" min="1" max="40" step="0.5" value="10" />
+              <input id="overNum" type="number" min="1" max="40" step="0.5" value="10" />
+            </div>
+          </div>
+          <p class="hint">只计没有细节的过曝。白衬衫、白墙等固有色不算。</p>
+
+          <div class="field">
+            <span class="row-between">
+              欠曝面积
+              <strong id="underLabel">20%</strong>
+            </span>
+            <div class="slider-row">
+              <input id="underThreshold" type="range" min="1" max="50" step="0.5" value="20" />
+              <input id="underNum" type="number" min="1" max="50" step="0.5" value="20" />
+            </div>
+          </div>
+          <p class="hint">只计没有细节的欠曝。黑发、黑衣服等固有色不算。</p>
+
+          <div class="field">
+            <span class="row-between">
+              高饱和高明度纯色面积
+              <strong id="neonLabel">20%</strong>
+            </span>
+            <div class="slider-row">
+              <input id="neonThreshold" type="range" min="5" max="60" step="0.5" value="20" />
+              <input id="neonNum" type="number" min="5" max="60" step="0.5" value="20" />
+            </div>
+          </div>
+          <p class="hint">高饱和且很亮的纯色超过该占比，视为不达标。</p>
+
+          <label class="field">
+            <span>不达标目标目录</span>
+            <input id="destColor" type="text" spellcheck="false" placeholder="默认：原目录旁 *_color_fail" />
+          </label>
+          <label class="field">
+            <span>合格目标目录</span>
+            <input id="destColorPass" type="text" spellcheck="false" placeholder="默认：原目录旁 *_color_pass" />
+          </label>
+          <button id="exportColorBtn" class="ghost" type="button" disabled>移出不达标图片</button>
+          <button id="exportColorPassBtn" class="ghost" type="button" disabled>移出合格图片</button>
+          <p class="hint">从原文件夹直接挪走，每张写 JSON，并分别写总表 color_fail.json / color_pass.json。</p>
+          <p id="colorExportHint" class="hint"></p>
+        </section>
+
+        <section id="compControls" hidden inert>
+          <p id="compHint" class="hint">现在先只调中心构图。每张图都必须按主体左右位置认真估量；坐标写成 0.5 套模板、或和左右侧矛盾，会作废重问。结论里会写出依据。</p>
+
+          <label class="field">
+            <span>构图类型名称</span>
+            <input id="compTypeName" type="text" spellcheck="false" placeholder="例如：引导线构图" />
+          </label>
+          <label class="field">
+            <span>构图定义</span>
+            <textarea id="compTypeDesc" placeholder="用文字解释什么是这种构图，分析时会参考这段话。"></textarea>
+          </label>
+          <label class="field">
+            <span>参考图文件夹</span>
+            <input id="compRefFolder" type="text" spellcheck="false" placeholder="只读这一层里的图片，可先空着只加定义" />
+          </label>
+          <button id="compAddTypeBtn" class="ghost" type="button">添加构图类型</button>
+          <div id="compRefProgress" class="ref-progress" hidden>
+            <div class="row-between">
+              <p id="compRefProgressText" class="hint"></p>
+              <button id="compRefStopBtn" type="button">停止</button>
+            </div>
+            <div class="ref-progress-track"><i id="compRefProgressFill"></i></div>
+          </div>
+          <p id="compRefHint" class="hint"></p>
+
+          <div id="compRefTypes" class="type-list"></div>
+
+          <div class="divider"></div>
+
+          <div class="actions">
+            <button id="compScanBtn" class="primary" type="button">开始分析</button>
+            <button id="compStopBtn" class="danger" type="button" disabled>停止</button>
+          </div>
+          <p id="compScanHint" class="hint">分析时会用本机视觉模型逐张看图。</p>
+
+          <div class="divider"></div>
+          <div id="compExportFields"></div>
+          <label class="field">
+            <span>未归类目标目录</span>
+            <input id="destCompUnassigned" type="text" spellcheck="false" placeholder="默认：原目录旁 *_comp_unassigned" />
+          </label>
+          <button id="exportCompUnassignedBtn" class="ghost" type="button" disabled>移出未归类</button>
+          <p class="hint">从原文件夹直接挪走图片和同名 JSON，不复制。</p>
+          <p id="compExportHint" class="hint"></p>
+        </section>
+
+        <section id="cropControls" hidden inert>
+          <div class="actions">
+            <button id="cropScanBtn" class="primary" type="button">开始分析</button>
+            <button id="cropStopBtn" class="danger" type="button" disabled>停止</button>
+          </div>
+          <p id="cropScanHint" class="hint">右侧可对比原图和裁切结果，拖动红框或在原图上框选来改范围。只自动去掉成对的电影黑边/白边。</p>
+
+          <div class="divider"></div>
+
+          <label class="field">
+            <span>裁切图文件夹</span>
+            <input id="destCrop" type="text" spellcheck="false" placeholder="默认：原目录旁 *_cropped" />
+          </label>
+          <label class="field">
+            <span>无需裁剪文件夹</span>
+            <input id="destCropSkip" type="text" spellcheck="false" placeholder="默认：原目录旁 *_uncropped" />
+          </label>
+          <button id="exportCropBtn" class="ghost" type="button" disabled>另存全部分类</button>
+          <p class="hint">裁过的进裁切文件夹，没裁的原样复制到无需裁剪文件夹，方便对照。都不动原图。</p>
+          <p id="cropExportHint" class="hint"></p>
+        </section>
+
+        <section id="lutControls" hidden inert>
+          <label class="field">
+            <span>LUT 名称</span>
+            <input id="lutName" type="text" spellcheck="false" placeholder="例如：青湖" />
+          </label>
+          <label class="field">
+            <span>LUT 参考图文件夹</span>
+            <input id="lutRefFolder" type="text" spellcheck="false" placeholder="/path/to/look-refs" />
+          </label>
+          <label class="field">
+            <span>LUT 特性描述</span>
+            <textarea id="lutDesc" placeholder="会叠在参考图影调上。例如：水色更青，叶子偏黄绿，整体通透，不要太饱和。"></textarea>
+          </label>
+          <div class="actions">
+            <button id="lutGenBtn" class="primary" type="button">生成 LUT</button>
+            <button id="lutRegenBtn" class="ghost" type="button">重新生成</button>
+          </div>
+          <p id="lutGenHint" class="hint">参考图定底调，描述叠加上去，两者一起生成最终 LUT。改描述后点「重新生成」即可对比。</p>
+
+          <div class="divider"></div>
+          <p class="hint" style="margin-top:0">已保存的 LUT · 点「加入叠加」可叠多层，每层单独调</p>
+          <div id="lutLibrary" class="type-list"></div>
+
+          <div class="divider"></div>
+          <div class="field">
+            <span class="row-between">
+              新层默认强度
+              <strong id="lutDefaultLabel">100%</strong>
+            </span>
+            <div class="slider-row">
+              <input id="lutDefault" type="range" min="0" max="150" step="5" value="100" />
+              <input id="lutDefaultNum" type="number" min="0" max="150" step="5" value="100" />
+            </div>
+          </div>
+          <button id="lutApplyAllBtn" class="ghost" type="button">把当前各层强度同步到全部图</button>
+
+          <div class="actions" style="margin-top:12px">
+            <button id="lutScanBtn" class="primary" type="button">载入待处理图</button>
+            <button id="lutStopBtn" class="danger" type="button" disabled>停止</button>
+          </div>
+          <p id="lutScanHint" class="hint">上面「图片文件夹」里是要套 LUT 的图。勾选多张后，上方滑杆会同时改这些图，也可勾选后一起导出。</p>
+
+          <div class="divider"></div>
+          <label class="field">
+            <span>导出文件夹</span>
+            <input id="destLut" type="text" spellcheck="false" placeholder="默认：原目录旁 *_lut" />
+          </label>
+          <button id="lutExportOneBtn" class="ghost" type="button" disabled>导出当前这张</button>
+          <button id="lutExportCheckedBtn" class="ghost" type="button" disabled>导出勾选到文件夹</button>
+          <button id="lutExportCheckedZipBtn" class="ghost" type="button" disabled>勾选打包 ZIP</button>
+          <button id="lutExportAllBtn" class="ghost" type="button" disabled>全部导出到文件夹</button>
+          <button id="lutExportZipBtn" class="ghost" type="button" disabled>全部打包 ZIP</button>
+          <p id="lutExportHint" class="hint"></p>
+        </section>
+      </aside>
+
+      <main class="stage">
+        <section id="textStage">
+          <section class="stats" id="stats">
+            <article><small>全部图片</small><b id="statTotal">—</b></article>
+            <article><small>含文字</small><b id="statText">—</b></article>
+            <article><small>其余</small><b id="statRest">—</b></article>
+            <article><small>平均占比</small><b id="statAvg">—</b></article>
+            <article><small>中位数</small><b id="statMed">—</b></article>
+          </section>
+
+          <section class="chart-card">
+            <div class="chart-head">
+              <h2>文字面积分布</h2>
+              <span id="progressText"></span>
+            </div>
+            <canvas id="hist" height="120"></canvas>
+            <div class="axis" id="histAxis"></div>
+          </section>
+
+          <section class="gallery-head">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-filter="all" type="button">全部</button>
+              <button class="tab" data-filter="text" type="button">含文字</button>
+              <button class="tab" data-filter="rest" type="button">其余</button>
+            </div>
+            <span id="galleryCount" class="muted"></span>
+          </section>
+          <section id="grid" class="grid"></section>
+        </section>
+
+        <section id="colorStage" hidden inert>
+          <section class="stats stats-4">
+            <article><small>全部图片</small><b id="colorStatTotal">—</b></article>
+            <article><small>不达标（移出）</small><b id="colorStatFail">—</b></article>
+            <article><small>合格</small><b id="colorStatOk">—</b></article>
+            <article><small>配色不合</small><b id="colorStatHarmony">—</b></article>
+          </section>
+
+          <section class="chart-card">
+            <div class="chart-head">
+              <h2>不达标原因分布</h2>
+              <span id="colorProgressText"></span>
+            </div>
+            <canvas id="colorHist" height="168"></canvas>
+          </section>
+
+          <section class="gallery-head">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-cfilter="all" type="button">全部</button>
+              <button class="tab" data-cfilter="fail" type="button">不达标</button>
+              <button class="tab" data-cfilter="ok" type="button">合格</button>
+            </div>
+            <span id="colorGalleryCount" class="muted"></span>
+          </section>
+          <section id="colorGrid" class="grid"></section>
+        </section>
+
+        <section id="compStage" hidden inert>
+          <section class="stats stats-auto" id="compStats"></section>
+
+          <section class="chart-card">
+            <div class="chart-head">
+              <h2>各构图数量</h2>
+              <span id="compProgressText"></span>
+            </div>
+            <canvas id="compHist" height="140"></canvas>
+          </section>
+
+          <section class="gallery-head">
+            <div class="tabs" id="compTabs" role="tablist"></div>
+            <span id="compGalleryCount" class="muted"></span>
+          </section>
+          <section id="compGrid" class="grid"></section>
+        </section>
+
+        <section id="cropStage" hidden inert>
+          <section class="stats stats-4">
+            <article><small>全部图片</small><b id="cropStatTotal">—</b></article>
+            <article><small>需裁剪</small><b id="cropStatNeed">—</b></article>
+            <article><small>无需裁剪</small><b id="cropStatSkip">—</b></article>
+            <article><small>已另存</small><b id="cropStatSaved">—</b></article>
+          </section>
+
+          <section class="chart-card">
+            <div class="chart-head">
+              <h2>黑白边情况</h2>
+              <span id="cropProgressText"></span>
+            </div>
+            <canvas id="cropHist" height="140"></canvas>
+          </section>
+
+          <section class="crop-compare" id="cropCompare">
+            <div class="crop-compare-empty" id="cropCompareEmpty">点下面一张图，对比原图和裁切结果。可拖动红框，或在原图上按住拖出新框。</div>
+            <div class="crop-compare-body" id="cropCompareBody" hidden>
+              <div class="crop-compare-head">
+                <div>
+                  <strong id="cropCompareName"></strong>
+                  <p id="cropCompareSummary"></p>
+                </div>
+                <div class="crop-compare-nav">
+                  <button type="button" id="cropPrevBtn">上一张</button>
+                  <button type="button" id="cropNextBtn">下一张</button>
+                  <button type="button" id="cropResetBtn">恢复自动检测</button>
+                </div>
+              </div>
+              <div class="crop-compare-panes">
+                <figure>
+                  <figcaption>原图 · 红框是裁切范围</figcaption>
+                  <div class="crop-pane" id="cropOrigPane">
+                    <img id="cropOrigImg" alt="" />
+                    <div class="crop-frame-layer" id="cropFrameLayer">
+                      <div class="crop-frame" id="cropFrame" hidden>
+                        <i class="crop-handle" data-h="nw"></i>
+                        <i class="crop-handle" data-h="n"></i>
+                        <i class="crop-handle" data-h="ne"></i>
+                        <i class="crop-handle" data-h="e"></i>
+                        <i class="crop-handle" data-h="se"></i>
+                        <i class="crop-handle" data-h="s"></i>
+                        <i class="crop-handle" data-h="sw"></i>
+                        <i class="crop-handle" data-h="w"></i>
+                      </div>
+                    </div>
+                  </div>
+                </figure>
+                <figure>
+                  <figcaption>裁切后</figcaption>
+                  <div class="crop-pane" id="cropAfterPane">
+                    <canvas id="cropAfterCanvas"></canvas>
+                  </div>
+                </figure>
+              </div>
+              <dl class="crop-compare-stats" id="cropCompareStats"></dl>
+            </div>
+          </section>
+
+          <section class="gallery-head">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-cropfilter="all" type="button">全部</button>
+              <button class="tab" data-cropfilter="need" type="button">需裁剪</button>
+              <button class="tab" data-cropfilter="skip" type="button">无需裁剪</button>
+            </div>
+            <span id="cropGalleryCount" class="muted"></span>
+          </section>
+          <section id="cropGrid" class="grid"></section>
+        </section>
+
+        <section id="lutStage" hidden inert>
+          <section class="lut-stack" id="lutStackCard">
+            <div class="lut-stack-head">
+              <div>
+                <strong id="lutStackTitle">叠加层</strong>
+                <p id="lutStackHint">从上到下依次套色。每层可套自己的 LUT，或改成该层对应的色相/曲线。</p>
+              </div>
+              <div class="lut-stack-tools">
+                <button type="button" id="lutResetItemBtn" hidden>勾选恢复默认</button>
+                <button type="button" id="lutClearStackBtn">清空叠加</button>
+              </div>
+            </div>
+            <div class="lut-look-empty" id="lutStackEmpty">还没有叠加层。生成一张 LUT，或从左侧已保存的 LUT 点「加入叠加」。</div>
+            <div id="lutStackList" class="lut-stack-list"></div>
+          </section>
+
+          <section class="lut-tune" id="lutTuneCard">
+            <div class="lut-stack-head">
+              <div>
+                <strong>这张图的默认方式</strong>
+                <p class="hint" id="lutTuneHint">自动时，每层按这张图的空间决定套 LUT 还是用该层自己的色相/曲线。也可在每层上单独指定。</p>
+              </div>
+              <div class="lut-tune-modes" id="lutTuneModes">
+                <button type="button" data-gmode="auto" class="is-on">自动</button>
+                <button type="button" data-gmode="lut">都套 LUT</button>
+                <button type="button" data-gmode="tune">都用色相/曲线</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="stats stats-4">
+            <article><small>待处理</small><b id="lutStatTotal">—</b></article>
+            <article><small>叠加层</small><b id="lutStatName">—</b></article>
+            <article><small>当前生效</small><b id="lutStatStrength">—</b></article>
+            <article><small>单独调过</small><b id="lutStatCustom">—</b></article>
+          </section>
+
+          <section class="crop-compare" id="lutCompare">
+            <div class="crop-compare-empty" id="lutCompareEmpty">载入待处理图后，点一张对比原图和叠 LUT 后的效果。每层强度在上方分开调节。</div>
+            <div class="crop-compare-body" id="lutCompareBody" hidden>
+              <div class="crop-compare-head">
+                <div>
+                  <strong id="lutCompareName"></strong>
+                  <p id="lutCompareSummary"></p>
+                </div>
+                <div class="crop-compare-nav">
+                  <button type="button" id="lutPrevBtn">上一张</button>
+                  <button type="button" id="lutNextBtn">下一张</button>
+                  <button type="button" id="lutDownloadBtn">导出这张</button>
+                </div>
+              </div>
+              <div class="crop-compare-panes">
+                <figure>
+                  <figcaption>原图</figcaption>
+                  <div class="crop-pane">
+                    <img id="lutOrigImg" alt="" />
+                  </div>
+                </figure>
+                <figure>
+                  <figcaption id="lutAfterCaption">套色后</figcaption>
+                  <div class="crop-pane">
+                    <img id="lutAfterImg" class="is-zoomable" alt="" title="点击放大看细节" />
+                    <canvas id="lutLiveCanvas" class="lut-live-canvas" hidden></canvas>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </section>
+
+          <section class="gallery-head lut-gallery-head">
+            <div class="lut-select-bar">
+              <label class="lut-select-all"><input id="lutCheckAll" type="checkbox" /> 全选</label>
+              <button type="button" id="lutCheckNone">取消勾选</button>
+              <span id="lutGalleryCount" class="muted"></span>
+            </div>
+            <span id="lutProgressText" class="muted"></span>
+          </section>
+          <section id="lutGrid" class="lut-grid"></section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="lutInspect">
+      <div class="lut-inspect">
+        <div class="lut-inspect-bar">
+          <div>
+            <strong id="lutInspectName"></strong>
+            <p id="lutInspectMeta"></p>
+          </div>
+          <div class="lut-inspect-ops">
+            <button type="button" id="lutInspectFit">适应窗口</button>
+            <button type="button" id="lutInspectOne">1:1 看细节</button>
+            <button type="button" id="lutInspectClose">关闭</button>
+          </div>
+        </div>
+        <div class="lut-inspect-view" id="lutInspectView">
+          <img id="lutInspectImg" alt="" />
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="lightbox">
+      <figure>
+        <canvas id="preview"></canvas>
+        <figcaption>
+          <div>
+            <strong id="lbName"></strong>
+            <p id="lbMeta"></p>
+          </div>
+          <button id="closeLb" type="button">关闭</button>
+        </figcaption>
+      </figure>
+    </dialog>
+
+    <script src="/static/app.js?v=35"></script>
+    <script src="/static/color.js?v=33"></script>
+    <script src="/static/composition.js?v=33"></script>
+    <script src="/static/crop.js?v=36"></script>
+    <script src="/static/lut_live.js?v=1"></script>
+    <script src="/static/lut.js?v=13"></script>
+  </body>
+</html>

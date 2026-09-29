@@ -1,0 +1,7 @@
+fastapi>=0.110,<0.116
+uvicorn>=0.27,<0.35
+pillow>=10.0
+numpy>=1.24
+opencv-python-headless>=4.8
+rapidocr>=2.0.0
+onnxruntime>=1.17
