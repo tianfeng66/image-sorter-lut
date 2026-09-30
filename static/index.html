@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>图片分拣</title>
-    <link rel="stylesheet" href="/static/styles.css?v=24" />
+    <link rel="stylesheet" href="/static/styles.css?v=25" />
   </head>
   <body>
     <div class="app">
@@ -427,6 +427,15 @@
                 <button type="button" data-gmode="tune">都用色相/曲线</button>
               </div>
             </div>
+            <div class="lut-stack-head lut-tune-pre">
+              <div>
+                <strong>预处理</strong>
+                <p class="hint">开启后先把图变成黑白，再依次套各层。作用于勾选的图，没勾选时只改当前这张。</p>
+              </div>
+              <div class="lut-tune-modes">
+                <button type="button" id="lutDesatBtn" aria-pressed="false" disabled>去色</button>
+              </div>
+            </div>
           </section>
 
           <section class="stats stats-4">
@@ -517,7 +526,7 @@
     <script src="/static/color.js?v=33"></script>
     <script src="/static/composition.js?v=33"></script>
     <script src="/static/crop.js?v=36"></script>
-    <script src="/static/lut_live.js?v=1"></script>
-    <script src="/static/lut.js?v=13"></script>
+    <script src="/static/lut_live.js?v=2"></script>
+    <script src="/static/lut.js?v=15"></script>
   </body>
 </html>

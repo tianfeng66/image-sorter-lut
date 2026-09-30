@@ -32,6 +32,7 @@ uniform float u_tblack[${LUT_LIVE_MAX_LAYERS}];
 uniform vec3 u_tmid[${LUT_LIVE_MAX_LAYERS}];
 uniform float u_bands[${LUT_LIVE_MAX_LAYERS * 6}];
 uniform int u_skin_only;
+uniform int u_desat;
 uniform vec2 u_look;
 out vec4 o;
 
@@ -166,6 +167,7 @@ void main() {
   }
   ivec2 at = ivec2(px.x, u_height - 1 - px.y);
   vec3 src = texelFetch(u_src, at, 0).rgb;
+  if (u_desat == 1) src = vec3(luma(src));
   vec3 graded = clamp(applyStack(src), 0.0, 1.0);
   vec2 st = srcStats(src);
   float y = st.x, sat = st.y;
@@ -415,6 +417,7 @@ class LutLiveRenderer {
     gl.uniform1i(this.loc.u_probe, 0);
     gl.uniform1i(this.loc.u_height, this.height);
     gl.uniform1i(this.loc.u_skin_only, spec.skinOnly ? 1 : 0);
+    gl.uniform1i(this.loc.u_desat, spec.desat ? 1 : 0);
     gl.uniform2f(this.loc.u_look, look[0], look[1]);
     gl.viewport(0, 0, this.width, this.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

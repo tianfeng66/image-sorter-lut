@@ -78,6 +78,12 @@ def _luma(rgb: np.ndarray) -> np.ndarray:
     return 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
 
 
+def desaturate(rgb: np.ndarray) -> np.ndarray:
+    """Gray at the same luma the grading pipeline uses, so brightness stays put."""
+    y = _luma(rgb.astype(np.float32))
+    return np.repeat(y[..., None], 3, axis=-1).astype(np.float32)
+
+
 def _odd_k(n: int, lo: int = 3, hi: int = 81) -> int:
     n = int(np.clip(int(n), lo, hi))
     return n if n % 2 else n + 1

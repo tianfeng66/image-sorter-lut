@@ -23,6 +23,7 @@ from lut_engine import (
     build_cube_rgb,
     build_hald,
     default_tune,
+    desaturate,
     estimate_adjust_room,
     generate_look,
     list_images,
@@ -448,6 +449,11 @@ def apply_layers(
         meta = {}
         source_rgb = load_rgb(source, max_side=None, meta=meta)
         room, space = _analyze_source(source_rgb)
+    if (grade or {}).get("desat"):
+        # Room/space stay on the color original: skin and sky are only detectable there.
+        source_rgb = desaturate(source_rgb)
+        meta.pop("u8", None)
+        meta.pop("u16", None)
     keep = None
     plan = resolve_grade(source_rgb, layers, grade, space=space)
     rgb = _apply_stack(source_rgb, layers, plan["used"])

@@ -162,6 +162,7 @@ class LutLayerIn(BaseModel):
 
 class LutGradeIn(BaseModel):
     mode: str = "auto"
+    desat: bool = False
     hue: Optional[float] = None
     sat: Optional[float] = None
     gamma: Optional[float] = None
@@ -1380,7 +1381,8 @@ def _stack_cache_key(layers: list, grade: Optional[dict] = None) -> str:
             f"{grade.get('hue')}:"
             f"{grade.get('sat')}:"
             f"{grade.get('gamma')}:"
-            f"{grade.get('contrast')}"
+            f"{grade.get('contrast')}:"
+            f"{1 if grade.get('desat') else 0}"
         )
     return hashlib.md5(raw.encode("utf-8")).hexdigest()[:12]
 
@@ -1392,6 +1394,7 @@ def _grade_dict(grade) -> Optional[dict]:
         grade = grade.model_dump()
     return {
         "mode": (grade.get("mode") or "auto").lower(),
+        "desat": bool(grade.get("desat")),
         "hue": grade.get("hue"),
         "sat": grade.get("sat"),
         "gamma": grade.get("gamma"),
@@ -1408,6 +1411,7 @@ def lut_preview(
     stack: str = "",
     w: int = 720,
     grade: str = "auto",
+    desat: int = 0,
     hue: Optional[float] = None,
     sat: Optional[float] = None,
     gamma: Optional[float] = None,
@@ -1420,7 +1424,7 @@ def lut_preview(
     if not layers:
         raise HTTPException(400, "还没有叠加层")
     w = max(80, min(int(w), 4000))
-    grade_spec = {"mode": grade, "hue": hue, "sat": sat, "gamma": gamma, "contrast": contrast}
+    grade_spec = {"mode": grade, "desat": bool(desat), "hue": hue, "sat": sat, "gamma": gamma, "contrast": contrast}
     cache_file = CACHE / f"lut_{item_id}_{w}_{_stack_cache_key(layers, grade_spec)}_c11.jpg"
     if not cache_file.exists():
         try:

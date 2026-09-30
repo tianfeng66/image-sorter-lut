@@ -679,6 +679,12 @@ dialog p { margin: 4px 0 0; color: #c9bbaa; font-size: 13px; white-space: pre-wr
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
+.lut-tune-modes button:disabled { opacity: 0.45; cursor: default; }
+.lut-tune-pre {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
 .lut-tune-sliders { display: grid; gap: 8px; margin-top: 10px; }
 .lut-tune-row {
   display: grid;

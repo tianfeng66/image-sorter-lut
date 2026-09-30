@@ -116,7 +116,7 @@ function itemHasCustom(item) {
   const overrides = itemOverrides(item.id);
   if (overrides && lut.stack.some((layer) => overrides[layer.key] != null)) return true;
   const g = lut.grade[item.id];
-  if (g && g.mode && g.mode !== "auto") return true;
+  if (g && ((g.mode && g.mode !== "auto") || g.desat)) return true;
   const tunes = lut.layerTune[item.id];
   return Boolean(tunes && Object.keys(tunes).length);
 }
@@ -185,17 +185,20 @@ function gradeOf(item) {
   const u = (item && lut.grade[item.id]) || {};
   return {
     mode: u.mode || "auto",
+    desat: Boolean(u.desat),
     suggested: s.mode || "lut",
     reason: s.reason || "",
   };
 }
 
 function gradeQuery(item) {
-  return `grade=${encodeURIComponent(gradeOf(item).mode)}`;
+  const g = gradeOf(item);
+  return `grade=${encodeURIComponent(g.mode)}${g.desat ? "&desat=1" : ""}`;
 }
 
 function gradePayload(item) {
-  return { mode: gradeOf(item).mode };
+  const g = gradeOf(item);
+  return { mode: g.mode, desat: g.desat };
 }
 
 function exportItemGrades() {
@@ -213,6 +216,19 @@ function setGradeMode(mode) {
   const selected = lutSelectedItem();
   if (selected && !lut.grade[selected.id]) lut.grade[selected.id] = { mode };
   renderLutTune();
+  renderLutStats();
+  scheduleLutPreview();
+}
+
+function toggleDesat() {
+  const on = !gradeOf(lutSliderItem()).desat;
+  const targets = lutTargetItems();
+  if (!targets.length) return;
+  targets.forEach((item) => {
+    lut.grade[item.id] = { ...(lut.grade[item.id] || {}), desat: on };
+  });
+  renderLutTune();
+  renderLutStats();
   scheduleLutPreview();
 }
 
@@ -364,12 +380,12 @@ function stackChipText(item) {
   const layers = effectiveLayers(item);
   if (!layers.length) return lut.stack.length ? "层已关闭" : "未叠加";
   const g = gradeOf(item);
-  return layers
-    .map((layer) => {
-      const used = layer.apply === "auto" ? (g.suggested === "tune" ? "曲线" : "LUT") : layer.apply === "tune" ? "曲线" : "LUT";
-      return `${layerName(layer)} ${used} ${lutPct(layer.strength)}`;
-    })
-    .join(" → ");
+  const steps = layers.map((layer) => {
+    const used = layer.apply === "auto" ? (g.suggested === "tune" ? "曲线" : "LUT") : layer.apply === "tune" ? "曲线" : "LUT";
+    return `${layerName(layer)} ${used} ${lutPct(layer.strength)}`;
+  });
+  if (g.desat) steps.unshift("去色");
+  return steps.join(" → ");
 }
 
 function setLutDefaultLabel() {
@@ -705,6 +721,13 @@ function renderLutStack() {
 function renderLutTune() {
   const item = lutSliderItem();
   const hint = $("lutTuneHint");
+  const desatBtn = $("lutDesatBtn");
+  if (desatBtn) {
+    const on = Boolean(item) && gradeOf(item).desat;
+    desatBtn.classList.toggle("is-on", on);
+    desatBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    desatBtn.disabled = !item;
+  }
   if (!item || !lut.stack.length) {
     if (hint) hint.textContent = "先加入叠加层并点开一张图。自动时，每层按空间决定套 LUT 还是用该层色相/曲线。";
     document.querySelectorAll("#lutTuneModes [data-gmode]").forEach((btn) => {
@@ -760,7 +783,8 @@ function lutCardChips(item) {
       return `<span class="lut-chip" style="${on ? "" : "opacity:.45"}"><i style="background:${color}"></i>${layerName(layer)} ${lutPct(layerStrength(layer, item))}</span>`;
     })
     .join("");
-  return chips || `<span class="lut-chip">未叠加</span>`;
+  const pre = gradeOf(item).desat ? `<span class="lut-chip"><i style="background:#888"></i>去色</span>` : "";
+  return pre + (chips || `<span class="lut-chip">未叠加</span>`);
 }
 
 function lutCardBadge(item) {
@@ -979,7 +1003,7 @@ function lutLiveSpec(item) {
       layers.push({ kind, strength, params: { ...LUT_DEFAULT_PARAMS, ...look.params }, protectWash: !green });
     }
   }
-  return { layers, skinOnly: allTune || greenLock };
+  return { layers, skinOnly: allTune || greenLock, desat: gradeOf(item).desat };
 }
 
 function lutLiveCan(item) {
@@ -1412,6 +1436,7 @@ $("lutDownloadBtn").addEventListener("click", () => downloadOne(lut.selectedId))
 document.querySelectorAll("#lutTuneModes [data-gmode]").forEach((btn) => {
   btn.addEventListener("click", () => setGradeMode(btn.dataset.gmode));
 });
+$("lutDesatBtn").addEventListener("click", toggleDesat);
 $("lutAfterImg").addEventListener("click", () => openLutInspect(lutSelectedItem()));
 $("lutInspectFit").addEventListener("click", applyLutInspectFit);
 $("lutInspectOne").addEventListener("click", applyLutInspectOne);
